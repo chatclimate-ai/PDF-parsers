@@ -1,0 +1,22 @@
+[tool.poetry]
+name = "pdf-parsers"
+version = "0.1.0"
+description = ""
+authors = ["Imene KOLLI <53266529+imene-swaan@users.noreply.github.com>"]
+readme = "README.md"
+packages = [{include = "pdf_parsers"}]
+
+[tool.poetry.dependencies]
+python = ">=3.11,<3.13"
+unstructured = {version = "^0.15.12", extras = ["all-docs"]}
+llama-index = "^0.11.10"
+docling = "^1.12.1"
+datasets = "^3.0.0"
+
+
+[tool.poetry.group.dev.dependencies]
+ipykernel = "^6.29.5"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
