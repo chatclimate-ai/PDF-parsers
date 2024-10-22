@@ -16,6 +16,9 @@ optional = true
 requests = "^2.32.3"
 beautifulsoup4 = "^4.12.3"
 pyppeteer = "^2.0.0"
+selenium = "^4.25.0"
+webdriver-manager = "^4.0.2"
+
 
 
 # Parser-specific dependencies
