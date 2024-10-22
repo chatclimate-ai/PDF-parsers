@@ -1,0 +1,18 @@
+[tool.poetry]
+name = "parseval"
+version = "0.1.0"
+description = ""
+authors = ["Imene KOLLI <53266529+imene-swaan@users.noreply.github.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "3.11.10"
+pyppeteer = "^2.0.0"
+docling = "^2.1.0"
+beautifulsoup4 = "^4.12.3"
+requests = "^2.32.3"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
