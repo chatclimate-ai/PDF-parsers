@@ -26,9 +26,9 @@ webdriver-manager = "^4.0.2"
 optional = true
 
 [tool.poetry.group.parser.dependencies]
-docling = "^2.1.0"
 pymupdf = "^1.24.12"
 pdfplumber = "^0.11.4"
+docling = "^2.2.0"
 
 [build-system]
 requires = ["poetry-core"]
