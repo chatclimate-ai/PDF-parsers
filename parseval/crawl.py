@@ -102,4 +102,5 @@ if __name__ == '__main__':
         output_dir = 'adobe',
         convert_to_pdf = True,
         convert_to_html = True,
+        use_screenshot_method = True
     )
