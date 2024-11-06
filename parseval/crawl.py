@@ -12,6 +12,10 @@ class WebsiteCrawler:
         :param browser_path: Path to Chromium or Chrome browser (optional).
         """
         self.browser_path = browser_path
+        self.html_filename: str = ""
+        self.html_content: str = ""
+        self.meta_data: dict = {}
+        self.pdf_output_path: str = ""
 
     async def handle_popups(self, page : Page):
         """
@@ -66,16 +70,20 @@ class WebsiteCrawler:
 
 
         if convert_to_pdf:
-            output_path = kwargs.get("output_pdf_path", os.path.join(output_dir, "output.pdf"))
+            pdf_output_name = kwargs.get(
+                "output_pdf_name", 
+                "output.pdf")
+            
+            self.pdf_output_path = os.path.join(output_dir, pdf_output_name)
             use_screenshot_method = kwargs.get("use_screenshot_method", False)
 
             pdf_crawler = WebsiteToPDF()
-            await pdf_crawler.process_website(page, output_path, use_screenshot_method)
+            await pdf_crawler.process_website(page, self.pdf_output_path, use_screenshot_method)
 
 
         if convert_to_html:
             html_crawler = WebsiteToHTML()
-            await html_crawler.scrape(page, output_dir=output_dir)
+            self.html_filename, self.html_content, self.meta_data = await html_crawler.scrape(page, output_dir=output_dir)
 
         # Close the browser once rendering is done
         await page.browser.close()
@@ -88,7 +96,11 @@ class WebsiteCrawler:
         asyncio.get_event_loop().run_until_complete(self.process(url, output_dir, **kwargs))
 
 
-
+    def get_html_content(self):
+        """
+        Get the HTML content of the page.
+        """
+        return self.html_content
 
 
 
