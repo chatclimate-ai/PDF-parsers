@@ -29,6 +29,9 @@ optional = true
 pymupdf = "^1.24.12"
 pdfplumber = "^0.11.4"
 docling = "^2.2.0"
+html2markdown = "^0.1.7"
+markdownify = "^0.13.1"
+html2text = "^2024.2.26"
 
 [build-system]
 requires = ["poetry-core"]
