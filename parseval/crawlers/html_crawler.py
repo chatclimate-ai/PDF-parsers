@@ -30,14 +30,14 @@ class WebsiteToHTML:
             html_filename = self.get_file_name_from_url(page_url)
 
             # Save the HTML content to a file
-            with open(os.path.join(output_dir, f"{html_filename}.html"), 'w') as html_file:
+            with open(os.path.join(output_dir, html_filename), 'w') as html_file:
                 html_file.write(html_content)
 
 
             images, image_data = await self.download_images(soup, page_url)
-            
+            os.makedirs(os.path.join(output_dir, "images"), exist_ok=True)
             for i, image in enumerate(images):
-                with open(os.path.join(output_dir, image_data[i]['filename']), 'wb') as img_file:
+                with open(os.path.join(output_dir, "images", image_data[i]['filename']), 'wb') as img_file:
                     img_file.write(image)
             
 
@@ -49,8 +49,9 @@ class WebsiteToHTML:
             }
 
             with open(os.path.join(output_dir, 'metadata.json'), 'w') as metadata_file:
-                metadata_file.write(json.dumps(meta_data, indent=4))
+                json.dump(meta_data, metadata_file, indent=4, ensure_ascii=False, default=str)
 
+            return html_filename, html_content, meta_data
             
         
         except Exception as e:

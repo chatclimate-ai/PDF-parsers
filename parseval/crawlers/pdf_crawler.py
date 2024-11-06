@@ -61,4 +61,4 @@ class WebsiteToPDF:
             await self.render_with_css(page, output_pdf_path)
         
 
-
+        return output_pdf_path
