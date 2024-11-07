@@ -32,6 +32,7 @@ docling = "^2.2.0"
 html2markdown = "^0.1.7"
 markdownify = "^0.13.1"
 html2text = "^2024.2.26"
+llama-parse = "^0.5.13"
 
 [build-system]
 requires = ["poetry-core"]
