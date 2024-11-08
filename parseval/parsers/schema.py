@@ -56,13 +56,3 @@ class ParserOutput(BaseModel):
             if "caption" in image and not isinstance(image["caption"], str):
                 raise ValueError("Each image that has a 'caption' key must be a string.")
         return images
-
-    @model_validator(mode='after')
-    def check_model_initialization(cls, values):
-        if 'text' not in values:
-            raise ValueError("The 'text' field is missing.")
-        if 'tables' not in values or not isinstance(values['tables'], list):
-            raise ValueError("The 'tables' field must be a list.")
-        if 'images' not in values or not isinstance(values['images'], list):
-            raise ValueError("The 'images' field must be a list.")
-        return values
