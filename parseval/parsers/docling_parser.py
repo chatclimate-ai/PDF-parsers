@@ -8,6 +8,8 @@ from docling_core.types.doc import PictureItem, TableItem, ImageRefMode, Docling
 import pandas as pd
 from PIL import Image
 from typing import Union, List, Generator, Dict, Tuple
+from .schema import ParserOutput
+
 
 class DoclingPDFParser:
     """
@@ -56,7 +58,7 @@ class DoclingPDFParser:
 
 
 
-    def parse_and_export(self, paths: Union[str, List[str]], **kwargs):
+    def parse_and_export(self, paths: Union[str, List[str]], **kwargs) -> List[ParserOutput]:
         """
         Parse the given document and export the parsed results to the output directory.
         """
@@ -106,32 +108,35 @@ class DoclingPDFParser:
         # Parse the document using the Docling Parser. This will return a generator of ConversionResult objects
         for result in self.parse_document(paths, **kwargs):
             if result.status == ConversionStatus.SUCCESS:
-                texts, tables, images = self.__export_result(result.document)
+                output = self.__export_result(result.document)
                 file_name = result.document.name
 
-                self.data.append({
-                    "file_name": file_name,
-                    "texts": texts,
-                    "tables": tables,
-                    "images": images
-                })
+                self.data.append(
+                    ParserOutput(
+                        file_name=file_name,
+                        text=output.text,
+                        tables=output.tables,
+                        images=output.images
+                    )
+                )
             
             else:
                 raise ValueError(f"Failed to parse the document: {result.errors}")
 
+        return self.data
         
 
-    def __export_result(self, document: DoclingDocument) -> Tuple[str, List[Dict], List[Dict]]:
+    def __export_result(self, document: DoclingDocument) -> ParserOutput:
         """
         Export the parsed results to the output directory.
         """
         if self.embed_images:
-            texts = document.export_to_markdown(
+            text = document.export_to_markdown(
                 image_mode=ImageRefMode.EMBEDDED,
             )
         
         else:
-            texts = document.export_to_markdown(
+            text = document.export_to_markdown(
                 image_mode=ImageRefMode.PLACEHOLDER,
             )
 
@@ -163,87 +168,88 @@ class DoclingPDFParser:
                 })
 
 
-        return texts, tables, images
+
+        return ParserOutput(text=text, tables=tables, images=images)
 
 
 
-if __name__ == "__main__":
-    import os
-    import json
-    file_path = "data/coca-cola-business-and-sustainability-report-2018.pdf"
+# if __name__ == "__main__":
+#     import os
+#     import json
+#     file_path = "data/coca-cola-business-and-sustainability-report-2018.pdf"
 
 
-    parser = DoclingPDFParser()
-    parser.parse_and_export(file_path)
+#     parser = DoclingPDFParser()
+#     parser.parse_and_export(file_path)
 
-    print("Successfully parsed the document.")
+#     print("Successfully parsed the document.")
 
-    file_name = parser.data[0]["file_name"]
+#     file_name = parser.data[0]["file_name"]
 
-    output_dir = "output/docling_output"
-    os.makedirs(output_dir, exist_ok=True)
+#     output_dir = "output/docling_output"
+#     os.makedirs(output_dir, exist_ok=True)
     
     
-    text_dir = f"{output_dir}/text"
-    os.makedirs(text_dir, exist_ok=True)
+#     text_dir = f"{output_dir}/text"
+#     os.makedirs(text_dir, exist_ok=True)
 
-    md = parser.data[0]["texts"]
-    with open(f"{text_dir}/{file_name}.md", "w") as f:
-        f.write(md)
-
-
-    tables_md_dir = f"{output_dir}/md_tables"
-    os.makedirs(tables_md_dir, exist_ok=True)
-
-    tables_csv_dir = f"{output_dir}/csv_tables"
-    os.makedirs(tables_csv_dir, exist_ok=True)
-
-    tables_img_dir = f"{output_dir}/img_tables"
-    os.makedirs(tables_img_dir, exist_ok=True)
-
-    tables = parser.data[0]["tables"]
-
-    for i, table in enumerate(tables):
-        table_md = table["table_md"]
-        table_df: pd.DataFrame = table["table_df"]
-        table_img: Image.Image = table["table_img"]
-        caption = table["caption"]
-
-        table_md = f"### {caption}\n\n" + table_md
+#     md = parser.data[0]["texts"]
+#     with open(f"{text_dir}/{file_name}.md", "w") as f:
+#         f.write(md)
 
 
-        with open(f"{tables_md_dir}/{file_name}_t{i}.md", "w") as f:
-            f.write(table_md)
+#     tables_md_dir = f"{output_dir}/md_tables"
+#     os.makedirs(tables_md_dir, exist_ok=True)
 
-        table_df.to_csv(f"{tables_csv_dir}/{file_name}_t{i}.csv", index=False)
+#     tables_csv_dir = f"{output_dir}/csv_tables"
+#     os.makedirs(tables_csv_dir, exist_ok=True)
 
-        table_img.save(f"{tables_img_dir}/{file_name}_t{i}.png")
+#     tables_img_dir = f"{output_dir}/img_tables"
+#     os.makedirs(tables_img_dir, exist_ok=True)
+
+#     tables = parser.data[0]["tables"]
+
+#     for i, table in enumerate(tables):
+#         table_md = table["table_md"]
+#         table_df: pd.DataFrame = table["table_df"]
+#         table_img: Image.Image = table["table_img"]
+#         caption = table["caption"]
+
+#         table_md = f"### {caption}\n\n" + table_md
 
 
-    images_dir = f"{output_dir}/images"
-    os.makedirs(images_dir, exist_ok=True)
+#         with open(f"{tables_md_dir}/{file_name}_t{i}.md", "w") as f:
+#             f.write(table_md)
 
-    images = parser.data[0]["images"]
-    captions = []
-    for i, image in enumerate(images):
-        img: Image.Image = image["image"]
-        caption = image["caption"]
+#         table_df.to_csv(f"{tables_csv_dir}/{file_name}_t{i}.csv", index=False)
+
+#         table_img.save(f"{tables_img_dir}/{file_name}_t{i}.png")
 
 
-        img.save(f"{images_dir}/{file_name}_i{i}.png")
-        captions.append(caption)
+#     images_dir = f"{output_dir}/images"
+#     os.makedirs(images_dir, exist_ok=True)
+
+#     images = parser.data[0]["images"]
+#     captions = []
+#     for i, image in enumerate(images):
+#         img: Image.Image = image["image"]
+#         caption = image["caption"]
+
+
+#         img.save(f"{images_dir}/{file_name}_i{i}.png")
+#         captions.append(caption)
     
-    with open(f"{images_dir}/{file_name}_captions.json", "w") as f:
-        json.dump(captions, f, indent=4, ensure_ascii=False, default=str)
+#     with open(f"{images_dir}/{file_name}_captions.json", "w") as f:
+#         json.dump(captions, f, indent=4, ensure_ascii=False, default=str)
     
     
-    print("Data has been successfully exported to the output directory.")
+#     print("Data has been successfully exported to the output directory.")
 
 
-    # save the data to a json file
-    # import json
-    # with open("data.json", "w") as f:
-    #     json.dump(parser.data, f, indent=4)
+#     # save the data to a json file
+#     # import json
+#     # with open("data.json", "w") as f:
+#     #     json.dump(parser.data, f, indent=4)
     
 
   
