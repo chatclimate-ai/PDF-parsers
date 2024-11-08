@@ -1,6 +1,6 @@
 from .parsers.docling_parser import DoclingPDFParser
 from .parsers.llama_parser import LlamaPDFParser
-from typing import Literal, List
+from typing import Literal, List, Union
 from .parsers.schema import ParserOutput
 
 class PDFParser:
@@ -14,7 +14,7 @@ class PDFParser:
             raise ValueError("Invalid parser specified. Please use 'docling' or 'llama'.")
         
         
-    def run(self, pdf_path: str, **kwargs) -> List[ParserOutput]:
+    def run(self, pdf_path: Union[str, List[str]], **kwargs) -> List[ParserOutput]:
         """
         Run the PDF parser on the given PDF file.
         """
