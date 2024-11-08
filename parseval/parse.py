@@ -1,15 +1,18 @@
 from .parsers.docling_parser import DoclingPDFParser
 from .parsers.llama_parser import LlamaPDFParser
+from .parsers.pymupdf_parser import PyMuPDFParser
 from typing import Literal, List, Union
 from .parsers.schema import ParserOutput
 
 class PDFParser:
-    def __init__(self, parser: Literal["docling", "llama"] = "docling"):
+    def __init__(self, parser: Literal["docling", "llama", "pymupdf"] = "docling"):
         
         if parser == "docling":
             self.parser = DoclingPDFParser()
         elif parser == "llama":
             self.parser = LlamaPDFParser()
+        elif parser == "pymupdf":
+            self.parser = PyMuPDFParser()
         else:
             raise ValueError("Invalid parser specified. Please use 'docling' or 'llama'.")
         
