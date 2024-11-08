@@ -1,22 +1,25 @@
 from .parsers.docling_parser import DoclingPDFParser
-
-
+from .parsers.llama_parser import LlamaPDFParser
+from typing import Literal, List
+from .parsers.schema import ParserOutput
 
 class PDFParser:
-    def __init__(self):
-        self.parser = DoclingPDFParser()
+    def __init__(self, parser: Literal["docling", "llama"] = "docling"):
+        
+        if parser == "docling":
+            self.parser = DoclingPDFParser()
+        elif parser == "llama":
+            self.parser = LlamaPDFParser()
+        else:
+            raise ValueError("Invalid parser specified. Please use 'docling' or 'llama'.")
         
         
-    def run(self, pdf_path: str, **kwargs):
+    def run(self, pdf_path: str, **kwargs) -> List[ParserOutput]:
         """
         Run the PDF parser on the given PDF file.
         """
         
-        self.parser.parse_and_export(pdf_path, **kwargs)
+        outputs = self.parser.parse_and_export(pdf_path, **kwargs)
 
-        text_md = self.parser.data[0]["texts"]
-        tables = self.parser.data[0]["tables"]
-        images = self.parser.data[0]["images"]
-
-        return text_md, tables, images
+        return outputs
 
