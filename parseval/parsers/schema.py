@@ -32,9 +32,6 @@ class ParserOutput(BaseModel):
             if "table_df" in table and not isinstance(table["table_df"], pd.DataFrame):
                 raise ValueError("Each table that has a 'table_df' key must be a pandas DataFrame.")
             
-            if "caption" in table and not isinstance(table["caption"], str):
-                raise ValueError("Each table that has a 'caption' key must be a string.")
-            
         return tables
 
     @field_validator('images')
@@ -51,6 +48,5 @@ class ParserOutput(BaseModel):
             
             if "image" not in image or not isinstance(image["image"], Image.Image):
                 raise ValueError("Each image must have an 'image' key of type PIL Image.")
-            if "caption" in image and not isinstance(image["caption"], str):
-                raise ValueError("Each image that has a 'caption' key must be a string.")
+            
         return images
