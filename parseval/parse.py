@@ -42,24 +42,28 @@ class PDFParser:
 
 
 class HTMLParser:
-    def __init__(self):
-        pass
+    def __init__(
+            self,
+            parser: Literal["markdownify", "html2markdown", "html2text"] = "markdownify"
+            ):
+        
+        self.parser = parser
 
     def run(
-            self, 
-            html_content: str, parser: Literal["markdownify", "html2markdown", "html2text"] = "markdownify",
-            kwargs: dict = {}
+            self,
+            html_content: str,
+            **kwargs
             ) -> str:
         """
         Run the HTML parser on the given HTML content.
         """
         markdown_content = ""
 
-        if parser == "markdownify":
+        if self.parser == "markdownify":
             markdown_content = markdownify.markdownify(html_content, **kwargs)
-        elif parser == "html2markdown":
+        elif self.parser == "html2markdown":
             markdown_content = html2markdown.convert(html_content)
-        elif parser == "html2text":
+        elif self.parser == "html2text":
             markdown_content = html2text.html2text(html_content, **kwargs)
         else:
             raise ValueError("Invalid parser specified. Please use 'markdownify', 'html2markdown' or 'html2text'.")
