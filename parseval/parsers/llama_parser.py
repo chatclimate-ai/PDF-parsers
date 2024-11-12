@@ -5,7 +5,9 @@ import pandas as pd
 from .schema import ParserOutput
 import io
 from PIL import Image
+from dotenv import load_dotenv
 
+load_dotenv()
 
 
 class LlamaPDFParser:
@@ -19,7 +21,7 @@ class LlamaPDFParser:
         """
         try:
             self.converter = LlamaParse(
-                api_key= os.environ.get("llama_parse_key"),
+                api_key= os.environ.get("LLAMA_PARSE_KEY"),
                 show_progress = False,
                 ignore_errors= False,
                 # split_by_page = False,
