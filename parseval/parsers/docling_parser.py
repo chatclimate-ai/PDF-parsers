@@ -182,11 +182,11 @@ class DoclingPDFParser:
         table_df: pd.DataFrame = item.export_to_dataframe()
         caption = item.caption_text()
 
-        return {
+        return [{
             "table_md": table_md,
             "table_df": table_df,
             "caption": caption
-        }
+        }]
     
 
     def _extract_images(self, item: PictureItem) -> List[Dict]:
@@ -196,10 +196,10 @@ class DoclingPDFParser:
         image: Image.Image = item.image.pil_image
         caption = item.caption_text()
 
-        return {
+        return [{
             "image": image,
             "caption": caption
-        }
+        }]
     
 
     def _extract_text(self, item: DoclingDocument) -> str:
