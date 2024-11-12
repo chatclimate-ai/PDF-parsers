@@ -16,6 +16,7 @@ class DoclingPDFParser:
     Parse a PDF file using the Docling Parser
     """
     def __init__(self):
+        self.embed_images = None
         self.initialized = False
 
     def __initialize_docling(self, pipeline_options: PdfPipelineOptions, backend: Union[DoclingParseDocumentBackend, PyPdfiumDocumentBackend]) -> None:
@@ -87,12 +88,12 @@ class DoclingPDFParser:
                 pipeline_options.ocr_options = EasyOcrOptions(
                     use_gpu=False, 
                     lang=["en"],
-                    # force_full_page_ocr=True,
+                    force_full_page_ocr=True,
                     )
             elif ocr_options == "tesseract":
                 pipeline_options.ocr_options = TesseractOcrOptions(
                     lang="eng",
-                    # force_full_page_ocr=True,
+                    force_full_page_ocr=True,
                     )
             else:
                 raise ValueError(f"Invalid OCR options specified: {ocr_options}")
@@ -180,12 +181,10 @@ class DoclingPDFParser:
         """
         table_md: str = item.export_to_markdown()
         table_df: pd.DataFrame = item.export_to_dataframe()
-        caption = item.caption_text()
 
         return [{
             "table_md": table_md,
-            "table_df": table_df,
-            "caption": caption
+            "table_df": table_df
         }]
     
 
@@ -194,11 +193,9 @@ class DoclingPDFParser:
         Extract images from the document and return as a list of dictionaries with image and caption data.
         """
         image: Image.Image = item.image.pil_image
-        caption = item.caption_text()
 
         return [{
-            "image": image,
-            "caption": caption
+            "image": image
         }]
     
 
