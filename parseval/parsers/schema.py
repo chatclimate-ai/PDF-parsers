@@ -1,20 +1,13 @@
 from pydantic import BaseModel, Field, field_validator
-from typing import List, Dict, Optional
+from typing import List, Dict
 import pandas as pd
 from PIL import Image
 
 class ParserOutput(BaseModel):
-    file_name: Optional[str] = Field(None, description="The name of the file.")
     text: str = Field(..., description="The parsed text from the document.")
     tables: List[Dict] = Field(..., description="The parsed tables from the document.")
     images: List[Dict] = Field(..., description="The parsed images from the document.")
 
-
-    @field_validator('file_name')
-    def validate_file_name(cls, file_name):
-        if file_name is not None and not isinstance(file_name, str):
-            raise ValueError("The 'file_name' key must be a string.")
-        return file_name
 
     @field_validator('text')
     def validate_text(cls, text):
@@ -55,6 +48,7 @@ class ParserOutput(BaseModel):
         for image in images:
             if not isinstance(image, dict):
                 raise ValueError("Each image must be a dictionary.")
+            
             if "image" not in image or not isinstance(image["image"], Image.Image):
                 raise ValueError("Each image must have an 'image' key of type PIL Image.")
             if "caption" in image and not isinstance(image["caption"], str):

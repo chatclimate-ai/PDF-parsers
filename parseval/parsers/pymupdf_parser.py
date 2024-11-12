@@ -11,32 +11,38 @@ class PyMuPDFParser:
     """
 
     def __init__(self):
-        self.data: List[ParserOutput] = []
-        self.embed_images = True
+        pass
 
-    def load_document(self, paths : Union[str, List[str]]) -> Generator[List[Page], None, None]:
+    def load_documents(self, paths : List[str]) -> Generator[List[Page], None, None]:
         for path in paths:
             with fitz.open(path) as doc:
                 pages = [doc.load_page(page_num) for page_num in range(doc.page_count)]
                 yield pages
 
 
-    def parse_and_export(self, paths : Union[str, List[str]], modalities : List[str] = ["text", "tables", "images"]) -> List[ParserOutput]:
-        """
-        Parse the given document and export the parsed results.
-        """
+    def parse_and_export(
+            self, 
+            paths : Union[str, List[str]], 
+            modalities : List[str] = ["text", "tables", "images"]
+            ) -> List[ParserOutput]:
+       
         if isinstance(paths, str):
             paths = [paths]
         
-        for result in self.parse_document(paths):
+        data = []
+        for result in self.load_documents(paths):
             output = self.__export_result(result, modalities)
 
-            self.data.append(output)
+            data.append(output)
            
-        return self.data
+        return data
 
     
-    def __export_result(self, pages: List[Page], modalities: List[str]) -> ParserOutput:
+    def __export_result(
+            self, 
+            pages: List[Page], 
+            modalities: List[str]
+            ) -> ParserOutput:
         """
         Export the parsed result to a list of dictionaries containing text, tables, and images.
         """

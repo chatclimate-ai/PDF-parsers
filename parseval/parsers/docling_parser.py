@@ -40,20 +40,22 @@ class DoclingPDFParser:
         self.initialized = True
 
 
-    def load_document(self, paths: Union[str, List[str]], **kwargs) -> Generator[ConversionResult, None, None]:
+    def load_documents(
+            self, 
+            paths: List[str], 
+            **kwargs
+            ) -> Generator[ConversionResult, None, None]:
         """
         Parse the given document and return the parsed result.
         """
         if not self.initialized:
             raise ValueError ("The Docling Parser has not been initialized.")
         
-        if isinstance(paths, str):
-            paths = [paths]
         
         raises_on_error = kwargs.get("raises_on_error", True)
         max_num_pages = kwargs.get("max_num_pages", sys.maxsize)
         max_file_size = kwargs.get("max_file_size", sys.maxsize)
-        
+
 
         yield from self.converter.convert_all(
             paths, 
@@ -70,9 +72,10 @@ class DoclingPDFParser:
             modalities : List[str] = ["text", "tables", "images"], 
             **kwargs
             ) -> List[ParserOutput]:
-        """
-        Parse the given document and export the parsed results to the output directory.
-        """
+       
+        if isinstance(paths, str):
+            paths = [paths]
+
         if not self.initialized:
             # Set pipeline options
             pipeline_options = PdfPipelineOptions()
@@ -127,9 +130,9 @@ class DoclingPDFParser:
 
             # Initialize the Docling Parser
             self.__initialize_docling(pipeline_options, backend)
-
+        
         data = []
-        for result in self.load_document(paths, **kwargs):
+        for result in self.load_documents(paths, **kwargs):
             if result.status == ConversionStatus.SUCCESS:
                 output = self.__export_result(result.document, modalities)
 
@@ -140,7 +143,11 @@ class DoclingPDFParser:
         return data
         
 
-    def __export_result(self, document: DoclingDocument, modalities: List[str]) -> ParserOutput:
+    def __export_result(
+            self, 
+            document: DoclingDocument, 
+            modalities: List[str]
+            ) -> ParserOutput:
         """
         Export the parsed results to the output directory.
         """

@@ -11,7 +11,6 @@ from PIL import Image
 
 class LlamaPDFParser:
     def __init__(self):
-        self.data: List[ParserOutput] = []
         self.initialized = False
 
 
@@ -23,6 +22,7 @@ class LlamaPDFParser:
             self.converter = LlamaParse(
                 api_key= os.environ.get("llama_parse_key"),
                 show_progress = False,
+                ignore_errors= False,
                 # split_by_page = False,
                 # invalidate_cache=True,
                 # do_not_cache=True,
@@ -32,12 +32,10 @@ class LlamaPDFParser:
             self.initialized = True
         
         except Exception as e:
-            print(f"An error occurred: {e}")
-            self.initialized = False
-            exit(0)
+            raise ValueError(f"An error occurred while initializing the LlamaParse converter: {e}")
     
 
-    def parse_document(self, paths: Union[str, List[str]]) -> Generator[Dict, None, None]: # Document, None, None]:
+    def load_documents(self, paths: List[str]) -> Generator[Dict, None, None]:
         """
         Parse the given document and return the parsed result.
         """
@@ -59,7 +57,16 @@ class LlamaPDFParser:
         yield from document
 
 
-    def parse_and_export(self, paths: Union[str, List[str]], **kwargs) -> List[ParserOutput]:
+    def parse_and_export(
+            self, 
+            paths: Union[str, List[str]], 
+            modalities : List[str] = ["text", "tables", "images"],  
+            **kwargs
+            ) -> List[ParserOutput]:
+        
+        if isinstance(paths, str):
+            paths = [paths]
+        
         if not self.initialized:
             language = kwargs.get("language", "en")
             result_type = kwargs.get("result_type", "markdown")
@@ -78,62 +85,78 @@ class LlamaPDFParser:
             )
 
         
-
-        for result in self.parse_document(paths):
-            output = self.__export_result(result)
-            file_name = result["file_path"].split("/")[-1].split(".")[0]
-
-            self.data.append(
-                    ParserOutput(
-                        file_name=file_name,
-                        text=output.text,
-                        tables=output.tables,
-                        images=output.images
-                    )
-                )
+        data = []
+        for result in self.load_documents(paths):
+            output = self.__export_result(result, modalities)
+            data.append(output)
         
-        return self.data
+        return data
 
 
 
-    def __export_result(self, parsing_result: dict) -> ParserOutput:
+    def __export_result(
+            self, 
+            json_result: dict, 
+            modalities: List[str]
+            ) -> ParserOutput:
         """
         Export the parsed result to the ParserOutput schema.
         """
-        text = []
-        tables = []
+        text = ""
+        tables: List[Dict] = []
+        images: List[Dict] = []
 
-        pages: List[Dict] = parsing_result["pages"]
+        pages: List[Dict] = json_result["pages"]
 
         for page in pages:
-            page_text = page["text"]
-            text.append(page_text)
-
-            # for item in page["items"]:
-            #     if item["type"] == "table":
-            #         table_md = item["md"]
-            #         table_df = pd.read_csv(io.StringIO(item["csv"]), sep=",")
-
-            #         tables.append({
-            #         "table_md": table_md,
-            #         "table_df": table_df
-            #         })  
+            if "text" in modalities:
+                text += self._extract_text(page) + "\n"
             
-        text = "\n".join(text)
-        
-        images = []
-        # image_dicts = self.converter.get_images([parsing_result], download_path="llama2_images")
-
-        # for img in image_dicts:
-        #     image_path = img["path"]
-        #     image = Image.open(image_path).convert("RGB")
-        #     images.append({
-        #             "image": image,
-        #         })
+            if "tables" in modalities:
+                tables += self._extract_tables(page)
+            
+            if "images" in modalities:
+                images += self._extract_images(page)
             
         return ParserOutput(text=text, tables=tables, images=images)
 
 
+    def _extract_text(self, page: Dict) -> str:
+        """
+        Extract text from a page.
+        """
+        return page["text"]
+    
+    def _extract_tables(self, page: Dict) -> List[Dict]:
+        """
+        Extract tables from the document and return as a list of dictionaries with table markdown, dataframe, and caption data.
+        """
+        tables = []
+        for item in page["items"]:
+            if item["type"] == "table":
+                table_md = item["md"]
+                table_df = pd.read_csv(io.StringIO(item["csv"]), sep=",")
+
+                tables.append({
+                    "table_md": table_md,
+                    "table_df": table_df
+                })
+        return tables
+
+    def _extract_images(self, page: Dict) -> List[Dict]:
+        """
+        Extract images from a page and return as a list of dictionaries with image and caption data.
+        """
+        images = []
+        image_dicts = self.converter.get_images([page], download_path="llama_images")
+        for img in image_dicts:
+            image_path = img["path"]
+            image = Image.open(image_path).convert("RGB")
+            images.append({
+                "image": image
+            })
+            os.remove(image_path)
+        return images
 
 
 if __name__ == "__main__":
