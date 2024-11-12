@@ -1,4 +1,4 @@
-from docling.datamodel.pipeline_options import PdfPipelineOptions, EasyOcrOptions
+from docling.datamodel.pipeline_options import PdfPipelineOptions, EasyOcrOptions, TableFormerMode, TesseractOcrOptions
 from docling.datamodel.document import ConversionResult
 from docling.datamodel.base_models import InputFormat, ConversionStatus
 from docling.document_converter import DocumentConverter, PdfFormatOption
@@ -7,17 +7,15 @@ from docling.backend.pypdfium2_backend import PyPdfiumDocumentBackend
 from docling_core.types.doc import PictureItem, TableItem, ImageRefMode, DoclingDocument
 import pandas as pd
 from PIL import Image
-from typing import Union, List, Generator, Dict, Tuple
+from typing import Union, List, Generator, Dict
 from .schema import ParserOutput
-
+import sys
 
 class DoclingPDFParser:
     """
     Parse a PDF file using the Docling Parser
     """
-
     def __init__(self):
-        self.data = []
         self.initialized = False
 
     def __initialize_docling(self, pipeline_options: PdfPipelineOptions, backend: Union[DoclingParseDocumentBackend, PyPdfiumDocumentBackend]) -> None:
@@ -42,7 +40,7 @@ class DoclingPDFParser:
         self.initialized = True
 
 
-    def parse_document(self, paths: Union[str, List[str]], **kwargs) -> Generator[ConversionResult, None, None]:
+    def load_document(self, paths: Union[str, List[str]], **kwargs) -> Generator[ConversionResult, None, None]:
         """
         Parse the given document and return the parsed result.
         """
@@ -51,14 +49,27 @@ class DoclingPDFParser:
         
         if isinstance(paths, str):
             paths = [paths]
-
         
-        # yield self.converter.convert_all(paths, **kwargs) iterator
-        yield from self.converter.convert_all(paths, **kwargs)
+        raises_on_error = kwargs.get("raises_on_error", True)
+        max_num_pages = kwargs.get("max_num_pages", sys.maxsize)
+        max_file_size = kwargs.get("max_file_size", sys.maxsize)
+        
+
+        yield from self.converter.convert_all(
+            paths, 
+            raises_on_error=raises_on_error, 
+            max_num_pages=max_num_pages, 
+            max_file_size=max_file_size
+            )
 
 
 
-    def parse_and_export(self, paths: Union[str, List[str]], **kwargs) -> List[ParserOutput]:
+    def parse_and_export(
+            self, 
+            paths: Union[str, List[str]], 
+            modalities : List[str] = ["text", "tables", "images"], 
+            **kwargs
+            ) -> List[ParserOutput]:
         """
         Parse the given document and export the parsed results to the output directory.
         """
@@ -68,12 +79,34 @@ class DoclingPDFParser:
 
             # Set ocr options
             pipeline_options.do_ocr = kwargs.get("do_ocr", True)
-            pipeline_options.ocr_options = kwargs.get("ocr_options", EasyOcrOptions(use_gpu=False, lang=["en"]))
+            ocr_options = kwargs.get("ocr_options", "easyocr")
+            if ocr_options == "easyocr":
+                pipeline_options.ocr_options = EasyOcrOptions(
+                    use_gpu=False, 
+                    lang=["en"],
+                    # force_full_page_ocr=True,
+                    )
+            elif ocr_options == "tesseract":
+                pipeline_options.ocr_options = TesseractOcrOptions(
+                    lang="eng",
+                    # force_full_page_ocr=True,
+                    )
+            else:
+                raise ValueError(f"Invalid OCR options specified: {ocr_options}")
+
+    
 
             # Set table structure options
             pipeline_options.do_table_structure = kwargs.get("do_table_structure", True)
             pipeline_options.table_structure_options.do_cell_matching = kwargs.get("do_cell_matching", False)
-            pipeline_options.table_structure_options.mode = kwargs.get("mode", "ACCURATE")
+            mode = kwargs.get("tableformer_mode", "ACCURATE")
+            if mode == "ACCURATE":
+                pipeline_options.table_structure_options.mode = TableFormerMode.ACCURATE
+            elif mode == "FAST":
+                pipeline_options.table_structure_options.mode = TableFormerMode.FAST
+            else:
+                raise ValueError(f"Invalid mode specified: {mode}")
+
 
             # Set image options
             pipeline_options.images_scale = kwargs.get("images_scale", 1.0)
@@ -83,173 +116,97 @@ class DoclingPDFParser:
             
             # Set backend
             backend = kwargs.get("backend", DoclingParseDocumentBackend)
+            if backend == "docling":
+                backend = DoclingParseDocumentBackend
+            elif backend == "pypdfium":
+                backend = PyPdfiumDocumentBackend
+            else:
+                raise ValueError(f"Invalid backend specified: {backend}")
 
             self.embed_images = kwargs.get("embed_images", True)
 
             # Initialize the Docling Parser
             self.__initialize_docling(pipeline_options, backend)
 
-            # pop the kwargs
-            kwargs.pop("do_ocr", None)
-            kwargs.pop("ocr_options", None)
-            kwargs.pop("do_table_structure", None)
-            kwargs.pop("do_cell_matching", None)
-            kwargs.pop("mode", None)
-            kwargs.pop("images_scale", None)
-            kwargs.pop("generate_page_images", None)
-            kwargs.pop("generate_picture_images", None)
-            kwargs.pop("generate_table_images", None)
-            kwargs.pop("backend", None)
-            kwargs.pop("embed_images", None)
-
-            
-
-
-        # Parse the document using the Docling Parser. This will return a generator of ConversionResult objects
-        for result in self.parse_document(paths, **kwargs):
+        data = []
+        for result in self.load_document(paths, **kwargs):
             if result.status == ConversionStatus.SUCCESS:
-                output = self.__export_result(result.document)
-                file_name = result.document.name
+                output = self.__export_result(result.document, modalities)
 
-                self.data.append(
-                    ParserOutput(
-                        file_name=file_name,
-                        text=output.text,
-                        tables=output.tables,
-                        images=output.images
-                    )
-                )
+                data.append(output)
             
             else:
                 raise ValueError(f"Failed to parse the document: {result.errors}")
-
-        return self.data
+        return data
         
 
-    def __export_result(self, document: DoclingDocument) -> ParserOutput:
+    def __export_result(self, document: DoclingDocument, modalities: List[str]) -> ParserOutput:
         """
         Export the parsed results to the output directory.
         """
+        text = ""
+        tables: List[Dict] = []
+        images: List[Dict] = []
+
+
+        if "text" in modalities:
+            text = self._extract_text(document)
+
+        if any(modality in modalities for modality in ["tables", "images"]):
+            for item, _ in document.iterate_items():
+                if "tables" in modalities and isinstance(item, TableItem):
+                    tables += self._extract_tables(item)
+
+                if "images" in modalities and isinstance(item, PictureItem):
+                    images += self._extract_images(item)
+
+        return ParserOutput(
+            text=text, 
+            tables=tables, 
+            images=images
+            )
+
+
+    def _extract_tables(self, item: TableItem) -> List[Dict]:
+        """
+        Extract tables from the document and return as a list of dictionaries with table markdown, dataframe, and caption data.
+        """
+        table_md: str = item.export_to_markdown()
+        table_df: pd.DataFrame = item.export_to_dataframe()
+        caption = item.caption_text()
+
+        return {
+            "table_md": table_md,
+            "table_df": table_df,
+            "caption": caption
+        }
+    
+
+    def _extract_images(self, item: PictureItem) -> List[Dict]:
+        """
+        Extract images from the document and return as a list of dictionaries with image and caption data.
+        """
+        image: Image.Image = item.image.pil_image
+        caption = item.caption_text()
+
+        return {
+            "image": image,
+            "caption": caption
+        }
+    
+
+    def _extract_text(self, item: DoclingDocument) -> str:
+        """
+        Extract text from the document.
+        """
         if self.embed_images:
-            text = document.export_to_markdown(
+            return item.export_to_markdown(
                 image_mode=ImageRefMode.EMBEDDED,
             )
         
-        else:
-            text = document.export_to_markdown(
-                image_mode=ImageRefMode.PLACEHOLDER,
-            )
-
-        tables = []
-        images = []
-        for item, _ in document.iterate_items():
-            if isinstance(item, TableItem):
-                table_md: str = item.export_to_markdown()
-                table_df: pd.DataFrame = item.export_to_dataframe()
-                table_img: Image.Image = item.image.pil_image
-
-                caption = item.caption_text(document)
-
-
-                tables.append({
-                    "table_md": table_md,
-                    "table_df": table_df,
-                    "table_img": table_img,
-                    "caption": caption
-                })
-
-            if isinstance(item, PictureItem):
-                image: Image.Image = item.image.pil_image
-                caption = item.caption_text(document)
-
-                images.append({
-                    "image": image,
-                    "caption": caption
-                })
-
-
-
-        return ParserOutput(text=text, tables=tables, images=images)
-
-
-
-# if __name__ == "__main__":
-#     import os
-#     import json
-#     file_path = "data/coca-cola-business-and-sustainability-report-2018.pdf"
-
-
-#     parser = DoclingPDFParser()
-#     parser.parse_and_export(file_path)
-
-#     print("Successfully parsed the document.")
-
-#     file_name = parser.data[0]["file_name"]
-
-#     output_dir = "output/docling_output"
-#     os.makedirs(output_dir, exist_ok=True)
-    
-    
-#     text_dir = f"{output_dir}/text"
-#     os.makedirs(text_dir, exist_ok=True)
-
-#     md = parser.data[0]["texts"]
-#     with open(f"{text_dir}/{file_name}.md", "w") as f:
-#         f.write(md)
-
-
-#     tables_md_dir = f"{output_dir}/md_tables"
-#     os.makedirs(tables_md_dir, exist_ok=True)
-
-#     tables_csv_dir = f"{output_dir}/csv_tables"
-#     os.makedirs(tables_csv_dir, exist_ok=True)
-
-#     tables_img_dir = f"{output_dir}/img_tables"
-#     os.makedirs(tables_img_dir, exist_ok=True)
-
-#     tables = parser.data[0]["tables"]
-
-#     for i, table in enumerate(tables):
-#         table_md = table["table_md"]
-#         table_df: pd.DataFrame = table["table_df"]
-#         table_img: Image.Image = table["table_img"]
-#         caption = table["caption"]
-
-#         table_md = f"### {caption}\n\n" + table_md
-
-
-#         with open(f"{tables_md_dir}/{file_name}_t{i}.md", "w") as f:
-#             f.write(table_md)
-
-#         table_df.to_csv(f"{tables_csv_dir}/{file_name}_t{i}.csv", index=False)
-
-#         table_img.save(f"{tables_img_dir}/{file_name}_t{i}.png")
-
-
-#     images_dir = f"{output_dir}/images"
-#     os.makedirs(images_dir, exist_ok=True)
-
-#     images = parser.data[0]["images"]
-#     captions = []
-#     for i, image in enumerate(images):
-#         img: Image.Image = image["image"]
-#         caption = image["caption"]
-
-
-#         img.save(f"{images_dir}/{file_name}_i{i}.png")
-#         captions.append(caption)
-    
-#     with open(f"{images_dir}/{file_name}_captions.json", "w") as f:
-#         json.dump(captions, f, indent=4, ensure_ascii=False, default=str)
-    
-    
-#     print("Data has been successfully exported to the output directory.")
-
-
-#     # save the data to a json file
-#     # import json
-#     # with open("data.json", "w") as f:
-#     #     json.dump(parser.data, f, indent=4)
+        return item.export_to_markdown(
+            image_mode=ImageRefMode.PLACEHOLDER,
+        )
     
 
   

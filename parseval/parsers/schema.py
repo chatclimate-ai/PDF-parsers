@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, Field, field_validator
 from typing import List, Dict, Optional
 import pandas as pd
 from PIL import Image
@@ -24,8 +24,12 @@ class ParserOutput(BaseModel):
 
     @field_validator('tables')
     def validate_tables(cls, tables):
+        if not isinstance(tables, list):
+            raise ValueError("The 'tables' key must be a list.")
+        
         if not tables:
             return tables
+        
         for table in tables:
             if not isinstance(table, dict):
                 raise ValueError("Each table must be a dictionary.")
@@ -35,9 +39,6 @@ class ParserOutput(BaseModel):
             if "table_df" in table and not isinstance(table["table_df"], pd.DataFrame):
                 raise ValueError("Each table that has a 'table_df' key must be a pandas DataFrame.")
             
-            if "table_img" in table and not isinstance(table["table_img"], Image.Image):
-                raise ValueError("Each table that has a 'table_img' key must be a PIL Image.")
-            
             if "caption" in table and not isinstance(table["caption"], str):
                 raise ValueError("Each table that has a 'caption' key must be a string.")
             
@@ -45,6 +46,9 @@ class ParserOutput(BaseModel):
 
     @field_validator('images')
     def validate_images(cls, images):
+        if not isinstance(images, list):
+            raise ValueError("The 'images' key must be a list.")
+        
         if not images:
             return images
         
