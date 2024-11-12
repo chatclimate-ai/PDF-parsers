@@ -7,6 +7,7 @@ readme = "README.md"
 
 [tool.poetry.dependencies]
 python = "3.11.10"
+python-dotenv = "^1.0.1"
 
 # Crawler-specific dependencies
 [tool.poetry.group.crawler]
@@ -16,8 +17,6 @@ optional = true
 requests = "^2.32.3"
 beautifulsoup4 = "^4.12.3"
 pyppeteer = "^2.0.0"
-selenium = "^4.25.0"
-webdriver-manager = "^4.0.2"
 
 
 
