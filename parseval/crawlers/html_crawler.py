@@ -27,10 +27,10 @@ class WebsiteToHTML:
             soup = BeautifulSoup(page_source, 'html.parser')
 
             html_content = str(soup)
-            html_filename = self.get_file_name_from_url(page_url)
+            html_filepath = os.path.join(output_dir, self.get_file_name_from_url(page_url))
 
             # Save the HTML content to a file
-            with open(os.path.join(output_dir, html_filename), 'w') as html_file:
+            with open(html_filepath, 'w') as html_file:
                 html_file.write(html_content)
 
 
@@ -44,14 +44,14 @@ class WebsiteToHTML:
             meta_data = {
                 "url": page_url,
                 "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                "html_filename": f"{html_filename}.html",
+                "html_filepath": html_filepath,
                 "images": image_data
             }
 
             with open(os.path.join(output_dir, 'metadata.json'), 'w') as metadata_file:
                 json.dump(meta_data, metadata_file, indent=4, ensure_ascii=False, default=str)
 
-            return html_filename, html_content, meta_data
+            return html_filepath, html_content, meta_data
             
         
         except Exception as e:
@@ -163,5 +163,9 @@ class WebsiteToHTML:
         Extract the file name from the URL.
         :param url: The URL of the file
         :return: The file name extracted from the URL
+
+        Example:
+        >>> get_file_name_from_url("https://example.com/path/to/file.pdf")
+        file.pdf
         """
         return os.path.basename(urlparse(url).path)
