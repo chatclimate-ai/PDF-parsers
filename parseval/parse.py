@@ -28,14 +28,15 @@ class PDFParser:
         
     def run(
             self, 
-            pdf_path: Union[str, List[str]], 
+            pdf_path: Union[str, List[str]],
+            modalities : List[str] = ["text", "tables", "images"],
             **kwargs
             ) -> List[ParserOutput]:
         """
         Run the PDF parser on the given PDF file.
         """
         
-        outputs = self.parser.parse_and_export(pdf_path, **kwargs)
+        outputs = self.parser.parse_and_export(pdf_path, modalities, **kwargs)
 
         return outputs
 
