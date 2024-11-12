@@ -12,10 +12,10 @@ class WebsiteCrawler:
         :param browser_path: Path to Chromium or Chrome browser (optional).
         """
         self.browser_path = browser_path
-        self.html_filename: str = ""
-        self.html_content: str = ""
-        self.meta_data: dict = {}
-        self.pdf_output_path: str = ""
+        self.html_filepath: str = None
+        self.html_content: str = None
+        self.meta_data: dict = None
+        self.pdf_output_path: str = None
 
     async def handle_popups(self, page : Page):
         """
@@ -57,17 +57,20 @@ class WebsiteCrawler:
             raise Exception(f"An error occurred: {e}")
 
 
-    async def process(self, url: str, output_dir: str, **kwargs):
+    async def process(
+            self, 
+            url: str, 
+            output_dir: str,
+            convert_to_pdf: bool = False,
+            convert_to_html: bool = False,
+            **kwargs
+            ):
         """
         The main function that crawls the website and calls the appropriate rendering method.
         """
         os.makedirs(output_dir, exist_ok=True)
 
         page = await self.crawl_website(url)
-        
-        convert_to_pdf = kwargs.get("convert_to_pdf", False)
-        convert_to_html = kwargs.get("convert_to_html", False)
-
 
         if convert_to_pdf:
             pdf_output_name = kwargs.get(
@@ -83,24 +86,50 @@ class WebsiteCrawler:
 
         if convert_to_html:
             html_crawler = WebsiteToHTML()
-            self.html_filename, self.html_content, self.meta_data = await html_crawler.scrape(page, output_dir=output_dir)
+            self.html_filepath, self.html_content, self.meta_data = await html_crawler.scrape(page, output_dir=output_dir)
 
         # Close the browser once rendering is done
         await page.browser.close()
 
 
-    def run(self, url: str, output_dir: str,  **kwargs):
+    def run(
+            self, 
+            url: str, 
+            output_dir: str,
+            convert_to_pdf: bool = False,
+            convert_to_html: bool = False,
+            **kwargs
+            ):
         """
         A wrapper method to run the asynchronous scrape function synchronously.
         """
-        asyncio.get_event_loop().run_until_complete(self.process(url, output_dir, **kwargs))
+        asyncio.get_event_loop().run_until_complete(self.process(url, output_dir, convert_to_pdf, convert_to_html, **kwargs))
 
-
+    def get_html_filepath(self):
+        """
+        Get the file path to the generated HTML file.
+        """
+        return self.html_filepath
+    
     def get_html_content(self):
         """
         Get the HTML content of the page.
         """
         return self.html_content
+    
+    def get_meta_data(self):
+        """
+        Get the meta data of the page.
+        """
+        return self.meta_data
+    
+    def get_pdf_output_path(self):
+        """
+        Get the path to the generated PDF file.
+        """
+        return self.pdf_output_path
+    
+   
 
 
 
