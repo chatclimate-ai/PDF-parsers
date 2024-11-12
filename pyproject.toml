@@ -34,6 +34,16 @@ html2text = "^2024.2.26"
 llama-parse = "^0.5.13"
 pymupdf4llm = "^0.0.17"
 
+
+
+# Evaluation-specific dependencies
+[tool.poetry.group.evaluation]
+optional = true
+
+[tool.poetry.group.evaluation.dependencies]
+sentence_transformers = "^3.2.0"
+srsly = "^2.4.8"
+
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
