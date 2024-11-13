@@ -7,22 +7,6 @@ import tqdm
 
 
 
-def preprocess_text(text: str) -> str:
-    # Clean and normalize text
-    text = text.lower()
-    text = re.sub(r'[^\w\s]', '', text)  # Remove punctuation
-    # remove extra white space. Leave only one space between words
-    text = re.sub(r'\s+', ' ', text)
-    # text = word_tokenize(text)  # Tokenize into words
-    return text
-
-
-def sliding_window(text: str, window_size: int, step_size: int=1) -> Generator[Tuple[int, int], None, None]:
-    # Generate sliding windows from the text
-    tokens = text.split()  # Simple whitespace tokenization
-    for i in range(0, len(tokens) - window_size + 1, step_size):
-        yield (i, i + window_size)
-
 
 
 class ChunkEvaluator:
@@ -30,11 +14,13 @@ class ChunkEvaluator:
     Class to evaluate the performance of a parser using chunks
     """
 
-    def __init__(self, method: Literal['embedding', 'lcs']):
+    def __init__(self, method: Literal['embedding', 'lcs', 'rougeL'] = 'lcs'):
         if method == 'embedding':
             self.evaluator = EmbeddingEvaluator()
         elif method == 'lcs':
             self.evaluator = LCSEvaluator()
+        elif method == 'rougeL':
+            self.evaluator = RougeLEvaluator()
         else:
             raise ValueError("Invalid method. Choose 'embedding' or 'lcs'.")
 
@@ -61,8 +47,8 @@ class ChunkEvaluator:
             [('chunk1', 'chunk1'), ('chunk2', 'chunk2'), ('chunk3', 'chunk3'), ('chunk4', 'chunk4'), ('chunk5', 'chunk5')]
         """
         if preprocess:
-            ground_truth_text = preprocess_text(ground_truth_text)
-            markdown_text = preprocess_text(markdown_text)
+            ground_truth_text = self._preprocess_text(ground_truth_text)
+            markdown_text = self._preprocess_text(markdown_text)
 
         scores = []
         chunks = []
@@ -75,7 +61,7 @@ class ChunkEvaluator:
 
         # Iterate over sliding windows of the markdown text and the ground truth text and collect similarity scores
         with tqdm.tqdm(total=total_windows, desc=f"Sliding Window Progress (Score: {score:.4f})") as pbar:
-            for start_token_idx, end_token_idx in sliding_window(markdown_text, window_size, step_size):
+            for start_token_idx, end_token_idx in self._sliding_window(markdown_text, window_size, step_size):
                 md_chunk = " ".join(markdown_tokens[start_token_idx:end_token_idx])
                 gt_chunk = " ".join(gt_tokens[start_token_idx:end_token_idx])
 
@@ -89,6 +75,29 @@ class ChunkEvaluator:
 
 
         return scores, chunks
+    
+    @staticmethod
+    def _sliding_window(text: str, window_size: int, step_size: int=1) -> Generator[Tuple[int, int], None, None]:
+        # Generate sliding windows from the text
+        tokens = text.split()  # Simple whitespace tokenization
+        for i in range(0, len(tokens) - window_size + 1, step_size):
+            yield (i, i + window_size)
+
+
+    @staticmethod
+    def _preprocess_text(text: str) -> str:
+        # Clean and normalize text
+        text = text.lower()
+
+        # Remove punctuation
+        text = re.sub(r'[^\w\s]', '', text)
+        # remove extra white space. Leave only one space between words
+        text = re.sub(r'\s+', ' ', text)
+
+        # remove image placeholders
+        text = re.sub(r"<!-- image -->", "", text)
+
+        return text
 
 
 
@@ -104,8 +113,8 @@ class ChunkEvaluator:
             float: The similarity score between the two texts.
         """
         if preprocess:
-            text1 = preprocess_text(text1)
-            text2 = preprocess_text(text2)
+            text1 = self._preprocess_text(text1)
+            text2 = self._preprocess_text(text2)
         return self.evaluator.similarity_score(text1, text2)
     
 
@@ -122,8 +131,8 @@ class ChunkEvaluator:
             tuple: Two lists containing words unique to text1 and text2 respectively.
         """
         if preprocess:
-            text1 = preprocess_text(text1)
-            text2 = preprocess_text(text2)
+            text1 = self._preprocess_text(text1)
+            text2 = self._preprocess_text(text2)
 
         set1 = set(text1.split())
         set2 = set(text2.split())
@@ -146,8 +155,8 @@ class ChunkEvaluator:
             tuple: Two lists containing the indices of words that were skipped in text1 and text2 respectively.
         """
         if preprocess:
-            text1 = preprocess_text(ground_truth)
-            text2 = preprocess_text(markdown_text)
+            text1 = self._preprocess_text(ground_truth)
+            text2 = self._preprocess_text(markdown_text)
 
         else:
             text1 = ground_truth
