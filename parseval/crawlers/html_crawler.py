@@ -36,8 +36,11 @@ class WebsiteToHTML:
 
             images, image_data = await self.download_images(soup, page_url)
             os.makedirs(os.path.join(output_dir, "images"), exist_ok=True)
+
             for i, image in enumerate(images):
-                with open(os.path.join(output_dir, "images", image_data[i]['filename']), 'wb') as img_file:
+                image_path = os.path.join(output_dir, "images", image_data[i]['filename'])
+                image_data[i]['filepath'] = image_path
+                with open(image_path, 'wb') as img_file:
                     img_file.write(image)
             
 
