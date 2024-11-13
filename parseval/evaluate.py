@@ -1,65 +1,38 @@
 from .evaluation.chunk_matching import ChunkEvaluator
-from .schemas import GroundTruth
+from .schemas import GroundTruth, Predictions,  ChunkEvaluation
 from typing import Literal, Tuple, Dict, List
 from pathlib import Path
 import srsly
 import os
 from tqdm import tqdm
-from pandas import DataFrame
 
 
-class ParserMetrics:
+class EvaluateParser:
     """
     A class to evaluate the performance of the parser.
     """
     
-    def __init__(self, method: Literal['embedding', 'lcs'], preprocess: bool = False):
+    def __init__(self, method: Literal['embedding', 'lcs', 'rougeL']):
         """
         Args:
             method (str): The method to use for evaluation.
-            preprocess (bool): Whether to preprocess the text before evaluation.
         """
-        self.evaluator = ChunkEvaluator(method, preprocess)
+        self.evaluator = ChunkEvaluator(method)
 
 
-    def _find_most_similar_chunk(self, ground_truth_chunk: str, parsed_document: str, **kwargs) -> Tuple[str, float]:
+    def _get_chunk_scores(self, ground_truth_text: str, parsed_document: str, **kwargs) -> Tuple[str, float]:
         """
-        Finds the most similar chunk to the ground truth chunk from the parsed document.
-
-        Args:
-            ground_truth_chunk (str): The ground truth chunk.
-            parsed_document (str): The parsed document.
-
-        Returns:
-            str: The most similar chunk from the parsed document.
         """
 
-        best_chunk, best_score = self.evaluator.get_most_similar_chunk(ground_truth_chunk, parsed_document, **kwargs)
+        chunks, scores = self.evaluator.compare_chunk(
+            ground_truth_text, 
+            parsed_document,
+            **kwargs
+            )
+        
+        return chunks, scores
 
-        return best_chunk, best_score
-    
-
-    def evaluate(self, ground_truth_chunk: str, parsed_document: str, **kwargs) -> Dict[str, float]:
-        """
-        Evaluates the performance of the parser. Finds the most similar chunk to the ground truth chunk from the parsed document.
-
-        Args:
-            ground_truth_chunk (str): The ground truth chunk.
-            parsed_document (str): The parsed document.
-
-        Returns:
-            dict: A dictionary containing the best chunk, its rank, and the matching score.
-        """
-
-        best_chunk, best_score = self._find_most_similar_chunk(ground_truth_chunk, parsed_document, **kwargs)
-
-        return {
-            "best_chunk": best_chunk,
-            "best_score": best_score
-        }
-    
-
-    def binary_evaluate(self, ground_truth_chunk: str, parsed_document: str, threshold: float = 0.8, **kwargs) -> Dict[str, float]:
+    def binary_evaluate(self, ground_truth_text: str, parsed_document: str, threshold: float = 0.8, **kwargs) -> ChunkEvaluation:
         """
         Evaluates the performance of the parser. Returns True if the best chunk has a score above the threshold, False otherwise.
 
@@ -72,117 +45,119 @@ class ParserMetrics:
             dict: A dictionary containing the best chunk, its rank, the matching score, and a boolean indicating a match.
         """
 
-        result = self.evaluate(ground_truth_chunk, parsed_document, **kwargs)
+        chunks, scores = self._get_chunk_scores(ground_truth_text, parsed_document, **kwargs)
+        binary_scores = [True if score >= threshold else False for score in scores]
 
-        if result["best_score"] >= threshold:
-            result["match"] = True
-        else:
-            result["match"] = False
-
-        return result
-
-
+        return ChunkEvaluation(
+            chunks=chunks,
+            scores=scores,
+            binary_scores=binary_scores
+        )
 
 
 
-class EvaluateParser:
-    gt_elements: List[GroundTruth] = []
-    parser_metrics: ParserMetrics
-    gt_scores: List[Dict] = []
+
+
+class ParserMetrics:
+    parser_evaluator: EvaluateParser
+    eval_scores: List[Dict]
 
     def __init__(
             self,
-            gt_file_path: Path,
-            method: Literal['embedding', 'lcs'],
+            method: Literal['embedding', 'lcs', 'rougeL']
     ):
-        if not gt_file_path.exists():
-            raise FileNotFoundError(f"File not found: {gt_file_path}")
-        if not gt_file_path.suffix == ".json":
-            raise ValueError("Ground truth file must be in JSON format.")
+        
+        self.parser_evaluator = EvaluateParser(method=method)
 
-        self.gt_elements = [GroundTruth(**item) for item in srsly.read_json(gt_file_path)]
-        self.parser_metrics = ParserMetrics(method=method, preprocess=True)
-
-    def evaluate(self, markdown_dir: str) -> None:
+    def evaluate_text(self, ground_truth: GroundTruth, parser_output: Predictions, **kwargs) -> None:
         """
         Evaluate the retrieval performance for the RAG system.
         """
         try:
-            for gt in tqdm(self.gt_elements, desc="Evaluating Parser", unit="gt"):
-                gt_score = gt.model_dump()
+            for  html_path, gt_text, pred in tqdm(zip(ground_truth.html_paths, ground_truth.html_contents, parser_output.predictions), desc="Evaluating Parser", total=len(ground_truth.html_paths)):
 
-                gt_score["parser_output"] = []
-                markdown_path = os.path.join(markdown_dir, gt.file_name)
-                with open(markdown_path, 'r') as f:
-                    parsed_document = f.read()
+                
 
-                for evidence in gt.evidences:
-                    gt_score["parser_output"] += [
-                        self.parser_metrics.binary_evaluate(
-                            ground_truth_chunk=evidence,
-                            parsed_document=parsed_document,
-                            threshold=0.8,
-                            step_size = 100
-                        )
-                    ]
+                pred_text = pred.text
 
-                # Calculating the recall
-                matches = [i["match"] for i in gt_score["parser_output"]]
-                gt_score["recall"] = sum(matches) / len(gt.evidences)
+                chunk_eval = self.parser_evaluator.binary_evaluate(
+                    ground_truth_text=gt_text,
+                    parsed_document=pred_text,
+                    **kwargs
+                )
 
-                # del gt_score["retriever_output"]
-                self.gt_scores += [gt_score]
+                matches = sum(chunk_eval.binary_scores)
+                recall = matches / len(chunk_eval.binary_scores)
+
+                average_score = sum(chunk_eval.scores) / len(chunk_eval.scores)
+                min_score = min(chunk_eval.scores)
+                min_score_chunk = "\n-------------------\n".join(chunk_eval.chunks[chunk_eval.scores.index(min_score)])
+
+                max_score = max(chunk_eval.scores)
+                max_score_chunk = "\n-------------------\n".join(chunk_eval.chunks[chunk_eval.scores.index(max_score)])
+                
+                self.eval_scores += [{
+                    "file_path": html_path,
+                    "num_chunks": len(chunk_eval.chunks),
+                    "matches": matches,
+                    "average_score": average_score,
+                    "min_score": min_score,
+                    "min_score_chunk": min_score_chunk,
+                    "max_score": max_score,
+                    "max_score_chunk": max_score_chunk,
+                    "recall": recall
+                }]
+
 
         except ZeroDivisionError as e:
-            raise ZeroDivisionError("No evidence found in the ground truth file. Please check the ground truth file.") from e
+            raise ZeroDivisionError("No chunks found in the ground truth text.") from e
 
-    def aggregate_evaluation(self, markdown_dir: str) -> Dict:
+    def aggregate_text_evaluation(self) -> Dict:
         """
         Aggregate the evaluation metrics (reciprocal recall and average recall) per filename.
         """
-        self.evaluate(markdown_dir)
-
-        if len(self.gt_scores) == 0:
+        if len(self.eval_scores) == 0:
             raise ValueError("No evaluation scores found.")
         
-        # transform the gt_scores into a pandas dataframe
-        df = DataFrame(self.gt_scores)
-        aggregation = df.groupby("file_name").agg({
-            "recall": "mean"
-        })
+       
+        aggregation = {
+            "total_chunks": sum([score["num_chunks"] for score in self.eval_scores]),
+            "total_matches": sum([score["matches"] for score in self.eval_scores]),
+            "Average Recall": sum([score["recall"] for score in self.eval_scores]) / len(self.eval_scores),
+            "Average Score": sum([score["average_score"] for score in self.eval_scores]) / len(self.eval_scores),
+            "min_score": min([score["min_score"] for score in self.eval_scores]),
+            "max_score": max([score["max_score"] for score in self.eval_scores]),
+            "min_score_chunk": min([score["min_score_chunk"] for score in self.eval_scores]),
+            "max_score_chunk": max([score["max_score_chunk"] for score in self.eval_scores]),
+            "min_score_file": self.eval_scores[[score["min_score"] for score in self.eval_scores].index(min([score["min_score"] for score in self.eval_scores]))]["file_path"],
+            "max_score_file": self.eval_scores[[score["max_score"] for score in self.eval_scores].index(max([score["max_score"] for score in self.eval_scores]))]["file_path"]
+        }
 
-        # Rename the columns to make them more descriptive
-        aggregation = aggregation.rename(columns={
-            "recall": "mean_recall"
-        })
-
-        return aggregation.to_dict()
+        return aggregation
 
 
-    def save_evaluate(self, root_dir: Path):
+    def save_evaluation(self, root_dir: str):
         """
         Save the evaluation results to a JSON file.
         """
-        if not root_dir.exists():
-            root_dir.mkdir(parents=True)
+        os.makedirs(root_dir, exist_ok=True)
 
-        if len(self.gt_scores) == 0:
+        if len(self.eval_scores) == 0:
             raise ValueError("No evaluation scores found.")
 
-        srsly.write_json(os.path.join(root_dir, "parse_eval_results.json"), self.gt_scores)
+        srsly.write_json(os.path.join(root_dir, "parse_eval_results.json"), self.eval_scores)
 
 
-    def save_aggregation(self, root_dir: Path):
+    def save_aggregation(self, root_dir: str):
         """
         Save the aggregated evaluation results to a JSON file.
         """
-        if not root_dir.exists():
-            root_dir.mkdir(parents=True)
+        os.makedirs(root_dir, exist_ok=True)
         
-        if len(self.gt_scores) == 0:
+        if len(self.eval_scores) == 0:
             raise ValueError("No evaluation scores found.")
 
         srsly.write_json(
             os.path.join(root_dir, "parse_aggregated_results.json"),
-            self.aggregate_evaluation()
+            self.aggregate_text_evaluation()
         )
