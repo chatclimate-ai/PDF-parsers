@@ -6,12 +6,12 @@ authors = ["Imene KOLLI <53266529+imene-swaan@users.noreply.github.com>"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = "3.11.10"
+python = ">=3.12,<3.13"
 python-dotenv = "^1.0.1"
 
 # Crawler-specific dependencies
 [tool.poetry.group.crawler]
-optional = true
+optional = false
 
 [tool.poetry.group.crawler.dependencies]
 requests = "^2.32.3"
@@ -19,30 +19,26 @@ beautifulsoup4 = "^4.12.3"
 pyppeteer = "^2.0.0"
 
 
-
 # Parser-specific dependencies
 [tool.poetry.group.parser]
-optional = true
+optional = false
 
 [tool.poetry.group.parser.dependencies]
-pymupdf = "^1.24.12"
-pdfplumber = "^0.11.4"
-docling = "^2.2.0"
+pymupdf = "^1.24.13"
+docling = "^2.5.2"
+llama-parse = "^0.5.14"
 html2markdown = "^0.1.7"
 markdownify = "^0.13.1"
 html2text = "^2024.2.26"
-llama-parse = "^0.5.13"
-pymupdf4llm = "^0.0.17"
 
 
-
-# Evaluation-specific dependencies
 [tool.poetry.group.evaluation]
-optional = true
+optional = false
 
 [tool.poetry.group.evaluation.dependencies]
-sentence_transformers = "^3.2.0"
+sentence-transformers = "^3.2.0"
 srsly = "^2.4.8"
+
 
 [build-system]
 requires = ["poetry-core"]
