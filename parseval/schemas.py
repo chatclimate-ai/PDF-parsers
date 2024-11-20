@@ -14,7 +14,7 @@ class ImageMetadata(BaseModel):
 class Metadata(BaseModel):
     url: str
     timestamp: str
-    html_filename: str
+    html_filepath: str
     images: List[ImageMetadata]
 
 
@@ -31,7 +31,7 @@ class Predictions(BaseModel):
 
 
 class ChunkEvaluation(BaseModel):
-    chunks: List[Tuple[str, str]]
+    chunks: List[str]
     scores: List[float]
     binary_scores: List[bool]
 
