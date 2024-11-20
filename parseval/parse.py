@@ -64,7 +64,13 @@ class HTMLParser:
         elif self.parser == "html2markdown":
             markdown_content = html2markdown.convert(html_content)
         elif self.parser == "html2text":
-            markdown_content = html2text.html2text(html_content, **kwargs)
+            h = html2text.HTML2Text()
+            h.ignore_links = True
+            h.ignore_images = True
+            h.ignore_emphasis = True
+            h.ignore_tables = True
+            markdown_content = h.handle(html_content)
+            # markdown_content = html2text.html2text(html_content, **kwargs)
         else:
             raise ValueError("Invalid parser specified. Please use 'markdownify', 'html2markdown' or 'html2text'.")
         
