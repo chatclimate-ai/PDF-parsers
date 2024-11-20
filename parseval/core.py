@@ -3,6 +3,7 @@ from parseval.parse import PDFParser, HTMLParser
 from parseval.schemas import GroundTruth, Predictions, Metadata
 from parseval.evaluate import ParserMetrics
 from typing import List, Dict
+from pathlib import Path
 import json
 
 
@@ -39,12 +40,16 @@ class PDFParsingPipeline:
 
         for file_data in input_files:
             file_path: str = file_data['file_path']
-            
+
+
+            file_output_dir = Path(output_dir) / Path(file_path).stem
+            file_output_dir.mkdir(parents=True, exist_ok=True)
+
             # if it's not a pdf (url), crawl the website and save the html content and metadata
             if not file_path.endswith(".pdf"):
                 self.crawler.run(
                     url = file_path,
-                    output_dir = output_dir,
+                    output_dir = file_output_dir,
                     convert_to_html=True,
                 )
                 html_filepath = self.crawler.get_html_filepath()
@@ -62,8 +67,7 @@ class PDFParsingPipeline:
                     raise FileNotFoundError(f"HTML file not found at {html_filepath}")
                 
                 try:
-                    metadata_path = html_filepath.split('/')[:-1] + ['metadata.json']
-                    metadata_path = '/'.join(metadata_path)
+                    metadata_path = file_output_dir / "metadata.json"
                     with open(metadata_path, "r") as f:
                         metadata: Metadata = json.load(f)
                 
@@ -86,18 +90,22 @@ class PDFParsingPipeline:
             modalities: List[str] = ['text'],
             pdf_parsing_options: Dict = {},
             crawler_options: Dict = {}
-            ) -> List[str]:
+            ) -> Predictions:
         
         pdf_paths = []
         for file_data in input_files:
             file_path: str = file_data['file_path']
+            file_output_dir = Path(output_dir) / Path(file_path).stem
+            file_output_dir.mkdir(parents=True, exist_ok=True)
             
             # if it's not a pdf (url), crawl the website and save the html content and metadata
             if not file_path.endswith(".pdf"):
+                file_name = Path(file_path).stem
                 self.crawler.run(
                     url = file_path,
-                    output_dir = output_dir,
+                    output_dir = file_output_dir,
                     convert_to_pdf=True,
+                    output_pdf_name= f"{file_name}.pdf",
                     **crawler_options
                 )
                 pdf_filepath = self.crawler.get_pdf_output_path()
@@ -108,11 +116,11 @@ class PDFParsingPipeline:
 
             pdf_paths.append(pdf_filepath)
         
-        parsing_outputs: Predictions = self.pdf_parser.run(pdf_paths, modalities=modalities, **pdf_parsing_options)
+        parsing_outputs = self.pdf_parser.run(pdf_paths, modalities=modalities, **pdf_parsing_options)
 
         # TODO: Remove table md from the text before evaluation, evaluate only the text and the tables separately
 
-        return parsing_outputs
+        return Predictions(predictions=parsing_outputs)
 
 
     def get_ground_truth(
@@ -154,16 +162,45 @@ class PDFParsingPipeline:
             self,
             input_files: List[Dict],
             output_dir: str,
+            modalities: List[str] = ['text'],
             pdf_parsing_options: Dict = {},
             html_parsing_options: Dict = {},
             crawler_options: Dict = {},
             evaluation_options: Dict = {}
             ) -> None:
         
-        ground_truth = self.get_ground_truth(input_files, output_dir, html_parsing_options)
-        parsing_outputs = self.get_parsed_text(input_files, output_dir, pdf_parsing_options, crawler_options)
+        Path(output_dir).mkdir(parents=True, exist_ok=True)
 
-        self.evaluate(ground_truth, parsing_outputs, output_dir, evaluation_options)
+        ground_truth = self.get_ground_truth(
+            input_files=input_files,
+            output_dir=output_dir,
+            html_parsing_options=html_parsing_options
+            )
+
+        # dump the ground truth in the output_dir as a json file
+        ground_truth_path = Path(output_dir) / "ground_truth.json"
+        with open(ground_truth_path, "w") as f:
+            json.dump(ground_truth.model_dump(), f, indent=4)
+
+        predictions = self.get_parsed_text(
+            input_files=input_files,
+            output_dir=output_dir,
+            modalities=modalities,
+            pdf_parsing_options=pdf_parsing_options,
+            crawler_options=crawler_options
+            )
+
+        # dump the parsing outputs in the output_dir as a json file
+        parsing_outputs_path = Path(output_dir) / "parsing_outputs.json"
+        with open(parsing_outputs_path, "w") as f:
+            json.dump(predictions.model_dump(), f, indent=4)
+
+        self.evaluate(
+            ground_truths = ground_truth, 
+            parsing_outputs = predictions,
+            output_dir = output_dir,
+            evaluation_options = evaluation_options
+            )
 
         return None
 
