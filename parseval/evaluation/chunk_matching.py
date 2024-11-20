@@ -23,9 +23,88 @@ class ChunkEvaluator:
             self.evaluator = RougeLEvaluator()
         else:
             raise ValueError("Invalid method. Choose 'embedding' or 'lcs'.")
+        
+    
 
+    def _prepare_chunks(
+            self,
+            ground_truth_text: str, 
+            markdown_text: str, 
+            method: Literal["chunk_gt", "chunk_md", "chunk_both", "chunk_grid"] = "chunk_gt",
+            window_size: int = 100, 
+            step_size: int = 1
+            ) -> Generator[Tuple[str, str], None, None]:
+        
+        if method == "chunk_gt":
+            gt_tokens = ground_truth_text.split()
 
-    def compare_chunk(self, ground_truth_text: str, markdown_text: str, window_size: int = 100,  step_size: int=1, preprocess = True) -> Tuple[List[str], List[float]]:
+            for start_token_idx, end_token_idx in self._sliding_window(ground_truth_text, window_size, step_size):
+                gt_chunk = " ".join(gt_tokens[start_token_idx:end_token_idx])
+                yield gt_chunk, markdown_text
+
+        elif method == "chunk_md":
+            md_tokens = markdown_text.split()
+
+            for start_token_idx, end_token_idx in self._sliding_window(markdown_text, window_size, step_size):
+                md_chunk = " ".join(md_tokens[start_token_idx:end_token_idx])
+                yield ground_truth_text, md_chunk
+        
+        elif method == "chunk_both":
+            gt_tokens = ground_truth_text.split()
+            md_tokens = markdown_text.split()
+
+            for start_token_idx, end_token_idx in self._sliding_window(ground_truth_text, window_size, step_size):
+                gt_chunk = " ".join(gt_tokens[start_token_idx:end_token_idx])
+                md_chunk = " ".join(md_tokens[start_token_idx:end_token_idx])
+                yield gt_chunk, md_chunk
+        
+        elif method == "chunk_grid":
+            gt_tokens = ground_truth_text.split()
+            md_tokens = markdown_text.split()
+
+            for start_token_idx, end_token_idx in self._sliding_window(ground_truth_text, window_size, step_size):
+                for start_token_idx2, end_token_idx2 in self._sliding_window(markdown_text, window_size, step_size):
+
+                    gt_chunk = " ".join(gt_tokens[start_token_idx:end_token_idx])
+                    md_chunk = " ".join(md_tokens[start_token_idx2:end_token_idx2])
+                    yield gt_chunk, md_chunk
+        
+        else:
+            raise ValueError("Invalid method. Choose 'chunk_gt', 'chunk_md', 'chunk_both', or 'chunk_grid'.")
+
+    
+    def _total_windows_count(
+            self,
+            ground_truth_text: str,
+            markdown_text: str,
+            method: Literal["chunk_gt", "chunk_md", "chunk_both", "chunk_grid"] = "chunk_gt",
+            window_size: int = 100,
+            step_size: int = 1
+            ):
+        
+        if method == "chunk_gt" or method == "chunk_both":
+            gt_tokens = ground_truth_text.split()
+            return (len(gt_tokens) - window_size) // step_size + 1
+        
+        elif method == "chunk_md":
+            md_tokens = markdown_text.split()
+            return (len(md_tokens) - window_size) // step_size + 1
+        
+        elif method == "chunk_grid":
+            return self._total_windows_count(ground_truth_text, markdown_text, "chunk_gt", window_size, step_size) * self._total_windows_count(ground_truth_text, markdown_text, "chunk_md", window_size, step_size)
+
+        else:
+            raise ValueError("Invalid method. Choose 'chunk_gt', 'chunk_md', 'chunk_both', or 'chunk_grid'.")
+
+    def compare_chunk(
+            self, 
+            ground_truth_text: str, 
+            markdown_text: str,
+            method: Literal["chunk_gt", "chunk_md", "chunk_both", "chunk_grid"] = "chunk_gt",
+            window_size: int = 100,
+            step_size: int=1,
+            preprocess = True
+            ) -> Tuple[List[str], List[float]]:
         """
         Compares the ground truth text with the markdown text using a sliding window approach.
 
@@ -53,15 +132,16 @@ class ChunkEvaluator:
         scores: List[float] = []
         chunks: List[str] = []
 
-        gt_tokens = ground_truth_text.split()
-        total_windows = (len(gt_tokens) - window_size) // step_size + 1
+        total_windows = self._total_windows_count(ground_truth_text, markdown_text, method, window_size, step_size)
         best_score = 0
 
         with tqdm.tqdm(total=total_windows, desc=f"Progress (Best Score: {best_score:.4f})") as pbar:
-            for start_token_idx, end_token_idx in self._sliding_window(ground_truth_text, window_size, step_size):
-                gt_chunk = " ".join(gt_tokens[start_token_idx:end_token_idx])
+            for gt_chunk, md_chunk in self._prepare_chunks(ground_truth_text, markdown_text, method, window_size, step_size):
 
-                score = self.get_score(gt_chunk, markdown_text)
+                if gt_chunk == "" or md_chunk == "":
+                    continue
+
+                score = self.get_score(gt_chunk, md_chunk, preprocess = False)
                 scores.append(score)
                 chunks.append(gt_chunk)
 
@@ -70,7 +150,6 @@ class ChunkEvaluator:
 
                 pbar.set_description(f"Progress (Best Score: {best_score:.4f})")
                 pbar.update(1)
-
 
         return chunks, scores
     
