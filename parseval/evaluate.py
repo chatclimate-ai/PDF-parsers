@@ -1,7 +1,6 @@
 from .evaluation.chunk_matching import ChunkEvaluator
 from .schemas import GroundTruth, Predictions,  ChunkEvaluation
 from typing import Literal, Tuple, Dict, List
-from pathlib import Path
 import srsly
 import os
 from tqdm import tqdm
@@ -20,17 +19,15 @@ class EvaluateParser:
         self.evaluator = ChunkEvaluator(method)
 
 
-    def _get_chunk_scores(self, ground_truth_text: str, parsed_document: str, **kwargs) -> Tuple[str, float]:
+    def _get_chunk_scores(self, ground_truth_text: str, parsed_document: str, **kwargs) -> Tuple[List[str], List[float]]:
         """
         """
 
-        chunks, scores = self.evaluator.compare_chunk(
+        return self.evaluator.compare_chunk(
             ground_truth_text, 
             parsed_document,
             **kwargs
             )
-        
-        return chunks, scores
 
     def binary_evaluate(self, ground_truth_text: str, parsed_document: str, threshold: float = 0.8, **kwargs) -> ChunkEvaluation:
         """
@@ -68,6 +65,7 @@ class ParserMetrics:
     ):
         
         self.parser_evaluator = EvaluateParser(method=method)
+        self.eval_scores = []
 
     def evaluate_text(self, ground_truth: GroundTruth, parser_output: Predictions, **kwargs) -> None:
         """
@@ -91,10 +89,10 @@ class ParserMetrics:
 
                 average_score = sum(chunk_eval.scores) / len(chunk_eval.scores)
                 min_score = min(chunk_eval.scores)
-                min_score_chunk = "\n-------------------\n".join(chunk_eval.chunks[chunk_eval.scores.index(min_score)])
+                min_score_chunk = chunk_eval.chunks[chunk_eval.scores.index(min_score)]
 
                 max_score = max(chunk_eval.scores)
-                max_score_chunk = "\n-------------------\n".join(chunk_eval.chunks[chunk_eval.scores.index(max_score)])
+                max_score_chunk = chunk_eval.chunks[chunk_eval.scores.index(max_score)]
                 
                 self.eval_scores += [{
                     "file_path": html_path,
@@ -102,8 +100,8 @@ class ParserMetrics:
                     "matches": matches,
                     "average_score": average_score,
                     "min_score": min_score,
-                    "min_score_chunk": min_score_chunk,
                     "max_score": max_score,
+                    "min_score_chunk": min_score_chunk,
                     "max_score_chunk": max_score_chunk,
                     "recall": recall
                 }]
@@ -124,11 +122,11 @@ class ParserMetrics:
             "total_chunks": sum([score["num_chunks"] for score in self.eval_scores]),
             "total_matches": sum([score["matches"] for score in self.eval_scores]),
             "Average Recall": sum([score["recall"] for score in self.eval_scores]) / len(self.eval_scores),
+            "min_recall": min([score["recall"] for score in self.eval_scores]),
+            "max_recall": max([score["recall"] for score in self.eval_scores]),
             "Average Score": sum([score["average_score"] for score in self.eval_scores]) / len(self.eval_scores),
             "min_score": min([score["min_score"] for score in self.eval_scores]),
             "max_score": max([score["max_score"] for score in self.eval_scores]),
-            "min_score_chunk": min([score["min_score_chunk"] for score in self.eval_scores]),
-            "max_score_chunk": max([score["max_score_chunk"] for score in self.eval_scores]),
             "min_score_file": self.eval_scores[[score["min_score"] for score in self.eval_scores].index(min([score["min_score"] for score in self.eval_scores]))]["file_path"],
             "max_score_file": self.eval_scores[[score["max_score"] for score in self.eval_scores].index(max([score["max_score"] for score in self.eval_scores]))]["file_path"]
         }

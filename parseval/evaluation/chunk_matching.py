@@ -2,7 +2,7 @@ from .methods.lcs import LCSEvaluator
 from .methods.emb_similarity import EmbeddingEvaluator
 from .methods.rouge import RougeLEvaluator
 import re
-from typing import Generator, Literal, Tuple
+from typing import Generator, Literal, Tuple, List
 import tqdm
 
 
@@ -25,7 +25,7 @@ class ChunkEvaluator:
             raise ValueError("Invalid method. Choose 'embedding' or 'lcs'.")
 
 
-    def compare_chunk(self, ground_truth_text: str, markdown_text: str, window_size: int = 100,  step_size: int=1, preprocess = True) -> Tuple[list, list]:
+    def compare_chunk(self, ground_truth_text: str, markdown_text: str, window_size: int = 100,  step_size: int=1, preprocess = True) -> Tuple[List[str], List[float]]:
         """
         Compares the ground truth text with the markdown text using a sliding window approach.
 
@@ -50,31 +50,29 @@ class ChunkEvaluator:
             ground_truth_text = self._preprocess_text(ground_truth_text)
             markdown_text = self._preprocess_text(markdown_text)
 
-        scores = []
-        chunks = []
+        scores: List[float] = []
+        chunks: List[str] = []
 
-        markdown_tokens = markdown_text.split()
         gt_tokens = ground_truth_text.split()
+        total_windows = (len(gt_tokens) - window_size) // step_size + 1
+        best_score = 0
 
-        total_windows = (len(markdown_tokens) - window_size) // step_size + 1
-        score = 0
-
-        # Iterate over sliding windows of the markdown text and the ground truth text and collect similarity scores
-        with tqdm.tqdm(total=total_windows, desc=f"Sliding Window Progress (Score: {score:.4f})") as pbar:
-            for start_token_idx, end_token_idx in self._sliding_window(markdown_text, window_size, step_size):
-                md_chunk = " ".join(markdown_tokens[start_token_idx:end_token_idx])
+        with tqdm.tqdm(total=total_windows, desc=f"Progress (Best Score: {best_score:.4f})") as pbar:
+            for start_token_idx, end_token_idx in self._sliding_window(ground_truth_text, window_size, step_size):
                 gt_chunk = " ".join(gt_tokens[start_token_idx:end_token_idx])
 
-                score = self.get_score(gt_chunk, md_chunk)
-
+                score = self.get_score(gt_chunk, markdown_text)
                 scores.append(score)
-                chunks.append((gt_chunk, md_chunk))
+                chunks.append(gt_chunk)
 
-                pbar.set_description(f"Sliding Window Progress (Score: {score:.4f})")
+                if score > best_score:
+                    best_score = score
+
+                pbar.set_description(f"Progress (Best Score: {best_score:.4f})")
                 pbar.update(1)
 
 
-        return scores, chunks
+        return chunks, scores
     
     @staticmethod
     def _sliding_window(text: str, window_size: int, step_size: int=1) -> Generator[Tuple[int, int], None, None]:
