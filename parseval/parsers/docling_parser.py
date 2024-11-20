@@ -119,7 +119,7 @@ class DoclingPDFParser:
             pipeline_options.generate_table_images = kwargs.get("generate_table_images", True)
             
             # Set backend
-            backend = kwargs.get("backend", DoclingParseDocumentBackend)
+            backend = kwargs.get("backend", "docling")
             if backend == "docling":
                 backend = DoclingParseDocumentBackend
             elif backend == "pypdfium":
