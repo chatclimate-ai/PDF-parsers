@@ -2,18 +2,18 @@ import json
 from parseval.core import PDFParsingPipeline
 
 
-input_files = "data/test/v2/input_files.json"
+input_files = "data/test/v4/input_files.json"
 with open(input_files, "r") as f:
     input_files = json.load(f)
 
-output_dir = "data/test/v2"
+output_dir = "data/test/v4"
 
 
 if __name__ == "__main__":
     pipeline = PDFParsingPipeline(
-        pdf_parser="pymupdf",
+        pdf_parser="docling",
         html_parser="html2text",
-        eval_method="lcs"
+        eval_method="rougeL"
 
     )
     pipeline.run(
@@ -39,7 +39,8 @@ if __name__ == "__main__":
         #     "use_screenshot_method":True
         # },
         evaluation_options = {
-            "step_size":5,
+            "method": "chunk_grid",
+            "step_size":10,
             "window_size":100,
             "threshold":0.8,
             "preprocess":True,
@@ -47,3 +48,4 @@ if __name__ == "__main__":
         )
 
 
+# method: Literal["chunk_gt", "chunk_md", "chunk_both", "chunk_grid"] = "chunk_gt"
