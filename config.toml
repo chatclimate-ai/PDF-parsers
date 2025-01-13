@@ -1,0 +1,92 @@
+[tool.pdf_parser]
+name = "docling" # "pymupdf" or "docling" or "llama_parse"
+modalities = ["text", "image", "table"]
+
+[pdf_parser.docling]
+do_ocr = true
+ocr_engine = "easyocr" # "tesseract" or "easyocr"
+do_table_structure = true
+do_cell_matching = false
+tableformer_mode = "ACCURATE" # "FAST" or "ACCURATE"
+image_scaling = 1.0 # None or float. None if no images are needed
+generate_page_images = false
+generate_picture_images = false
+backend = "docling" # "pypdfium" or "docling"
+embed_images = false
+
+[pdf_parser.pymupdf]
+
+[pdf_parser.llama_parse]
+language = "en"
+result_type = "markdown"
+continuous_mode = true
+take_screenshot = false
+disable_ocr = false
+is_formatting_instruction = false
+
+
+
+
+
+[tool.html_parser]
+name = "html2text" # "html2text" or "markdownify" or "html2markdown"
+
+[html_parser.html2text]
+ignore_links = false
+wrap_links = true
+ignore_images = false
+images_as_html = true
+ignore_tables = false
+wrap_tables = true
+pas_tables = true
+ignore_emphasis = false
+emphasis_mark = "_"
+strong_mark = "**"
+ul_item_mark = "*"
+wrap_list_items = true
+heading_style = "ATX"
+
+[html_parser.markdownify]
+autolinks = true
+bullets = '*+-'  # An iterable of bullet types.
+code_language = ''
+escape_asterisks = true
+escape_underscores = true
+escape_misc = true
+heading_style = "underlined"
+newline_style = "spaces"
+strong_em_symbol = '*'
+sub_symbol = ''
+sup_symbol = ''
+wrap = false
+wrap_width = 80
+
+
+[html_parser.html2markdown]
+
+
+
+
+
+
+[tool.crawler]
+use = false
+
+[crawler.options]
+use_screenshot_method = false
+
+
+
+
+
+
+
+[tool.evaluation]
+name = "lcs" # "rougeL" or "embedding" or "lcs"
+
+[evaluation.options]
+threshold = 0.8 # similarity score threshold
+method = "chunk_grid" # "chunk_gt" or "chunk_md"or "chunk_both" or "chunk_grid"
+window_size = 100
+step_size = 1
+preprocess = true
