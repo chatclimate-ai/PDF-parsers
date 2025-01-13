@@ -38,7 +38,7 @@ optional = false
 [tool.poetry.group.evaluation.dependencies]
 sentence-transformers = "^3.2.0"
 srsly = "^2.4.8"
-
+rouge = "^1.0.1"
 
 [build-system]
 requires = ["poetry-core"]
