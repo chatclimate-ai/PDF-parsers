@@ -83,6 +83,14 @@ class PDFParsingPipeline:
         return GroundTruth(html_paths=html_paths, html_contents=html_contents, metadatas=metadatas)
 
 
+    def get_latex_contents(
+            self,
+            input_files: List[Dict],
+            output_dir: str
+            ) -> GroundTruth:
+        
+        latex_paths: List[str] = []
+
     def get_parsed_text(
             self, 
             input_files: List[Dict],
