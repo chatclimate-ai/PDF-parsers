@@ -6,7 +6,7 @@ class LCSEvaluator:
     def __init__(self):
         pass
 
-    def similarity_score(self, text1: str, text2: str):
+    def similarity_score(self, text1: str, text2: str) -> float:
         # Calculate the length of the longest common subsequence
         text1 = text1.split()
         text2 = text2.split()
