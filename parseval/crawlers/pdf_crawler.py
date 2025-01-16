@@ -43,7 +43,8 @@ class WebsiteToPDF:
                 'path': output_pdf_path,
                 'printBackground': True,
                 'landscape': True,
-                'preferCSSPageSize': True
+                'preferCSSPageSize': True,
+                'margin': {'top': '0px', 'right': '0px', 'bottom': '0px', 'left': '0px'}
             })
 
         except Exception as e:
