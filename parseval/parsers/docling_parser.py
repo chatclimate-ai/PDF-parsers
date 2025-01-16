@@ -116,7 +116,6 @@ class DoclingPDFParser:
             pipeline_options.images_scale = kwargs.get("images_scale", 1.0)
             pipeline_options.generate_page_images = kwargs.get("generate_page_images", False)
             pipeline_options.generate_picture_images = kwargs.get("generate_picture_images", True)
-            pipeline_options.generate_table_images = kwargs.get("generate_table_images", True)
             
             # Set backend
             backend = kwargs.get("backend", "docling")
