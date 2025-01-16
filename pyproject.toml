@@ -12,6 +12,7 @@ toml = "^0.10.2"
 
 
 # Crawler-specific dependencies
+bleach = "^6.2.0"
 [tool.poetry.group.crawler]
 optional = false
 
@@ -32,6 +33,8 @@ llama-parse = "^0.5.14"
 html2markdown = "^0.1.7"
 markdownify = "^0.13.1"
 html2text = "^2024.2.26"
+news-please = "^1.6.13"
+readability-lxml = "^0.8.1"
 
 
 [tool.poetry.group.evaluation]
