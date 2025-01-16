@@ -22,11 +22,6 @@ class LlamaPDFParser:
         try:
             self.converter = LlamaParse(
                 api_key= os.environ.get("LLAMA_PARSE_KEY"),
-                show_progress = False,
-                ignore_errors= False,
-                # split_by_page = False,
-                # invalidate_cache=True,
-                # do_not_cache=True,
                 **kwargs
             )
 
@@ -75,6 +70,12 @@ class LlamaPDFParser:
             take_screenshot = kwargs.get("take_screenshot", False)
             disable_ocr = kwargs.get("disable_ocr", False)
             is_formatting_instruction = kwargs.get("is_formatting_instruction", False)
+            split_by_page = kwargs.get("split_by_page", False)
+            show_progress = kwargs.get("show_progress", False)
+            ignore_errors = kwargs.get("ignore_errors", False)
+            invalidate_cache = kwargs.get("invalidate_cache", False)
+            do_not_cache = kwargs.get("do_not_cache", False)
+
 
             self.__initialize_llama(
                 language= language, 
@@ -82,7 +83,12 @@ class LlamaPDFParser:
                 continuous_mode= continuous_mode,
                 take_screenshot= take_screenshot,
                 disable_ocr= disable_ocr,
-                is_formatting_instruction= is_formatting_instruction
+                is_formatting_instruction= is_formatting_instruction,
+                split_by_page= split_by_page,
+                show_progress= show_progress,
+                ignore_errors= ignore_errors,
+                invalidate_cache= invalidate_cache,
+                do_not_cache= do_not_cache
             )
 
         
