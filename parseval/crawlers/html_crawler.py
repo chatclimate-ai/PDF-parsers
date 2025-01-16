@@ -29,6 +29,9 @@ class WebsiteToHTML:
             html_content = str(soup)
             html_filepath = os.path.join(output_dir, self.get_file_name_from_url(page_url))
 
+            if not html_filepath.endswith('.html'):
+                html_filepath += '.html'
+
             # Save the HTML content to a file
             with open(html_filepath, 'w') as html_file:
                 html_file.write(html_content)
