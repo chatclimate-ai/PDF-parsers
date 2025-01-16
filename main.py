@@ -22,6 +22,7 @@ if __name__ == "__main__":
     pipeline.run(
         input_files = input_files,
         output_dir = output_dir,
+        modalities= CONFIG["tool"]["pdf_parser"]["modalities"],
         pdf_parsing_options = CONFIG["pdf_parser"][CONFIG["tool"]["pdf_parser"]["name"]],
         html_parsing_options = CONFIG["html_parser"][CONFIG["tool"]["html_parser"]["name"]],
         crawler_options = CONFIG["crawler"]["options"] if CONFIG["tool"]["crawler"]["use"] else {},
