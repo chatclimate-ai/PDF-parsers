@@ -1,6 +1,6 @@
 [tool.pdf_parser]
 name = "docling" # "pymupdf" or "docling" or "llama_parse"
-modalities = ["text", "image", "table"]
+modalities = ["text"] # ["text", "tables", "images"]
 
 [pdf_parser.docling]
 do_ocr = true
@@ -23,13 +23,16 @@ continuous_mode = true
 take_screenshot = false
 disable_ocr = false
 is_formatting_instruction = false
-
-
+split_by_page = false
+show_progress = false
+ignore_errors= false
+invalidate_cache=true
+do_not_cache=true
 
 
 
 [tool.html_parser]
-name = "html2text" # "html2text" or "markdownify" or "html2markdown"
+name = "markdownify" # "html2text" or "markdownify" or "html2markdown" or "readability" or "newsplease"
 
 [html_parser.html2text]
 ignore_links = false
@@ -64,8 +67,12 @@ wrap_width = 80
 
 [html_parser.html2markdown]
 
+[html_parser.readability]
+# url = None
 
-
+[html_parser.newsplease]
+# url = true
+fetch_images = false
 
 
 
