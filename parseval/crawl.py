@@ -17,7 +17,10 @@ class WebsiteCrawler:
         self.meta_data: dict = None
         self.pdf_output_path: str = None
 
-    async def handle_popups(self, page : Page):
+        self.url_page = {}
+
+    @staticmethod
+    async def handle_popups(page : Page):
         """
         Handle common pop-ups like cookie consent, language selection, etc.
         """
@@ -25,6 +28,38 @@ class WebsiteCrawler:
             const popups = document.querySelectorAll('.modal, .cookie-consent, .cookie-banner, .popup');
             popups.forEach(popup => popup.remove());
         }''')
+
+    @staticmethod
+    async def auto_scroll(page: Page):
+        # Step 1: Scroll down by one viewport height to capture the top portion with the nav bar
+        await page.evaluate('window.scrollBy(0, window.innerHeight);')
+        # Wait for content to load and the initial view to render
+        await asyncio.sleep(3)
+
+        # Step 2: Hide navigation bar after first scroll
+        await page.addStyleTag({
+            'content': '''
+                nav, header, .navbar, .navigation { 
+                    display: none !important; 
+                }
+            '''
+        })
+
+        # Use smaller scroll increments for the rest of the page
+        viewport_height = await page.evaluate('window.innerHeight')
+        scroll_increment = viewport_height / 2
+
+        previous_height = await page.evaluate('document.body.scrollHeight')
+        while True:
+            # Scroll down by a smaller increment without the nav bar obstructing
+            await page.evaluate(f'window.scrollBy(0, {scroll_increment});')
+            # Wait for new content to load
+            await asyncio.sleep(3)
+            new_height = await page.evaluate('document.body.scrollHeight')
+            # Break if we've reached the bottom of the page
+            if new_height == previous_height:
+                break
+            previous_height = new_height
 
     async def crawl_website(self, url: str) -> Page:
         """
@@ -40,16 +75,16 @@ class WebsiteCrawler:
             # Open a new tab
             page: Page = await browser.newPage()
 
+            # Adjust the viewport size to desired dimensions (e.g., 1920x1080)
+            await page.setViewport({'width': 1280, 'height': 1080})
+          
             # Go to the URL
             await page.goto(url, {'waitUntil': 'load', 'timeout': 120000})
 
             # Handle pop-ups (cookie consent, language modals, etc.)
             await self.handle_popups(page)
 
-            for i in range(5):  # Adjust the range for how many times to scroll
-                await page.evaluate('window.scrollBy(0, window.innerHeight);')
-                await asyncio.sleep(2)  # Wait for images to load
-
+            await self.auto_scroll(page)
 
             return page
 
@@ -70,6 +105,11 @@ class WebsiteCrawler:
         """
         os.makedirs(output_dir, exist_ok=True)
 
+        # if url in self.url_page:
+        #     page = self.url_page[url]
+        # else:
+        #     page = await self.crawl_website(url)
+        #     self.url_page[url] = page
         page = await self.crawl_website(url)
 
         if convert_to_pdf:
@@ -91,6 +131,11 @@ class WebsiteCrawler:
         # Close the browser once rendering is done
         await page.browser.close()
 
+    # def kill_page(self, url: str):
+    #     if url in self.url_page:
+    #         page = self.url_page[url]
+    #         page.browser.close()
+    #         del self.url_page[url]
 
     def run(
             self, 
